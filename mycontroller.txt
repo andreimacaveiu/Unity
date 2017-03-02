@@ -1,0 +1,113 @@
+﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+
+public class mycontroller : MonoBehaviour
+{
+        private Valve.VR.EVRButtonId grip = Valve.VR.EVRButtonId.k_EButton_Grip; //reference for the grip button
+        private Valve.VR.EVRButtonId trig = Valve.VR.EVRButtonId.k_EButton_SteamVR_Trigger; //reference for the reigger button
+
+        //"connect" to the correct device by the index of the tracked object , this way we get the newest controller index
+        private SteamVR_Controller.Device controller { get { return SteamVR_Controller.Input((int)track.index); } }//initialises the controller
+        private SteamVR_TrackedObject track;//reference to the tracked obj (to get the index )
+                                            // Use this for initialization
+
+    HashSet<Interaction_VIVE> objectsNearby = new HashSet<Interaction_VIVE>(); //used for storing closest object from the controller
+    private Interaction_VIVE nearestObj;//closest object
+    private Interaction_VIVE objNow;//current object
+
+    private GameObject grab;
+        void Start()
+        {
+            track = GetComponent<SteamVR_TrackedObject>();//reference to the component (tracked obj script)
+        }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (controller == null)
+        {
+            Debug.Log("Controller is not initialized");
+            return;
+        }
+        //display the use of the buttons to console
+        /*
+        if (controller.GetPressDown(grip))
+            Debug.Log("Grip button was pressed");
+
+        if (controller.GetPressUp(grip))
+            Debug.Log("Grip button was unpressed");
+
+        if (controller.GetPressDown(trig))
+            Debug.Log("Trigger button was pressed");
+
+        if (controller.GetPressUp(trig))
+            Debug.Log("Trigger button was unpressed");
+        //"controller.GetPress(grip)" can be used for checking a continous pressing state
+        
+        if (controller.GetPressDown(trig) && grab != null)
+        {
+            grab.transform.parent = this.transform;
+            grab.GetComponent<Rigidbody>().useGravity = false;
+        }
+        if (controller.GetPressUp(trig) && grab != null)
+        {
+            grab.transform.parent = null;
+            grab.GetComponent<Rigidbody>().useGravity = true;
+        }
+        */
+        if (controller.GetPressDown(trig))
+        {
+            float min = float.MaxValue; //get minimum distance in order to find closest item
+            float dist;
+            foreach (Interaction_VIVE item in objectsNearby)
+            {
+                dist = (item.transform.position - transform.position).sqrMagnitude;
+                if (dist<min) //square magnitude in order to eliminate a negative value
+                {
+                    min = dist;
+                    nearestObj = item;
+                }
+            }
+
+            objNow = nearestObj;
+            nearestObj = null;
+
+            if (objNow)//check that current object exists
+            {
+                if(objNow.interacting())
+                {
+                    objNow.stop_interact(this);
+                }
+                objNow.interact(this);
+            }         
+        }
+
+        if (controller.GetPressUp(trig) && objNow != null)
+        {
+            objNow.stop_interact(this);
+        }
+
+  }
+        private void OnTriggerEnter(Collider collider)
+    {
+        Debug.Log("Trigger interaction ON");
+        Interaction_VIVE collidedItem = collider.GetComponent<Interaction_VIVE>();
+        if(collidedItem)
+        {
+            objectsNearby.Add(collidedItem);
+        }
+        //grab = collider.gameObject;
+    }
+    private void OnTriggerExit(Collider collider)
+    {
+        Debug.Log("Trigger interaction OFF");
+        Interaction_VIVE collidedItem = collider.GetComponent<Interaction_VIVE>();
+        if (collidedItem)
+        {
+            objectsNearby.Remove(collidedItem);
+        }
+       
+        //grab = null;
+    }
+ }
